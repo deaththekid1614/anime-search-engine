@@ -613,9 +613,7 @@ const animeDB = [
   {id:498,title:"Hotarubi no Mori e",year:2011,episodes:1,score:8.0,type:"Movie",status:"Finished",emoji:"🌲",hidden:false,desc:"A girl meets a spirit in the forest who she can never touch. A beautiful, bittersweet supernatural romance.",why:"The most beautiful short romance anime. Every frame is gorgeous. The bittersweet ending is genuinely heartbreaking. Perfect for a quiet evening.",vibes:{mood:["romantic","melancholic","beautiful"],theme:["romance","supernatural","drama"],aesthetic:["natural","beautiful","soft"],energy:["slow burn","emotional"],era:["2010s"]}},
   {id:499,title:"The Garden of Sinners",year:2007,episodes:10,score:8.0,type:"Movie",status:"Finished",emoji:"🔪",hidden:false,desc:"A girl with the power to see death lines investigates supernatural murders. A dark, philosophical mystery series.",why:"Ufotable's early masterpiece. Dark, atmospheric, and genuinely philosophical. The non-linear storytelling is complex but rewarding.",vibes:{mood:["dark","mysterious","intense"],theme:["supernatural","mystery","action"],aesthetic:["dark","urban","elegant"],energy:["slow burn","intense"],era:["2000s"]}},
   {id:500,title:"Kara no Kyoukai",year:2007,episodes:10,score:8.0,type:"Movie",status:"Finished",emoji:"👁️",hidden:false,desc:"A girl who can see the lines of death investigates supernatural phenomena. A dark, atmospheric mystery series.",why:"The same as Garden of Sinners. Ufotable's early work is stunning. The atmosphere is unmatched and the action is beautifully choreographed.",vibes:{mood:["dark","mysterious","intense"],theme:["supernatural","mystery","action"],aesthetic:["dark","urban","elegant"],energy:["slow burn","intense"],era:["2000s"]}}
-];
-
-// ==========================================
+];// ==========================================
 // JAVASCRIPT ENGINE
 // ==========================================
 let selectedVibes = [];
@@ -885,36 +883,79 @@ function sortResults() {
 }
 
 // IMAGE CACHE SYSTEM
-const imageCache = {};
+const IMAGE_CACHE_KEY = 'anime_image_cache_v2';
+const imageCache = JSON.parse(localStorage.getItem(IMAGE_CACHE_KEY) || '{}');
+const imageQueue = [];
+let isProcessingQueue = false;
 let jikanRequestCount = 0;
-let jikanLastRequest = 0;
+let jikanLastReset = Date.now();
 
-async function jikanFetch(title) {
-  // Rate limit: max 2 requests per second, 30 per minute
+function canMakeJikanRequest() {
   const now = Date.now();
-  if (jikanRequestCount >= 30) {
-    if (now - jikanLastRequest < 60000) return null;
+  if (now - jikanLastReset > 60000) {
     jikanRequestCount = 0;
+    jikanLastReset = now;
   }
-  if (now - jikanLastRequest < 500) {
-    await new Promise(r => setTimeout(r, 500 - (now - jikanLastRequest)));
-  }
-  jikanLastRequest = Date.now();
-  jikanRequestCount++;
+  return jikanRequestCount < 30;
+}
 
+function saveImageCache() {
   try {
-    const res = await fetch(`https://api.jikan.moe/v4/anime?q=${encodeURIComponent(title)}&limit=1&sfw=false`);
-    const data = await res.json();
-    if (data.data && data.data[0] && data.data[0].images && data.data[0].images.jpg) {
-      return data.data[0].images.jpg.image_url;
+    localStorage.setItem(IMAGE_CACHE_KEY, JSON.stringify(imageCache));
+  } catch(e) {
+    const keys = Object.keys(imageCache);
+    if (keys.length > 100) {
+      keys.slice(0, keys.length - 100).forEach(k => delete imageCache[k]);
+      localStorage.setItem(IMAGE_CACHE_KEY, JSON.stringify(imageCache));
     }
-  } catch(e) {}
+  }
+}
+
+async function jikanFetch(title, retries = 2) {
+  if (imageCache[title]) {
+    return imageCache[title];
+  }
+
+  for (let attempt = 0; attempt <= retries; attempt++) {
+    if (!canMakeJikanRequest()) {
+      await new Promise(r => setTimeout(r, 2000));
+      continue;
+    }
+    jikanRequestCount++;
+
+    try {
+      const controller = new AbortController();
+      const timeout = setTimeout(() => controller.abort(), 5000);
+      const res = await fetch(`https://api.jikan.moe/v4/anime?q=${encodeURIComponent(title)}&limit=1&sfw=false`, { signal: controller.signal });
+      clearTimeout(timeout);
+
+      if (!res.ok) {
+        if (res.status === 429) {
+          await new Promise(r => setTimeout(r, 2000));
+          continue;
+        }
+        throw new Error(`HTTP ${res.status}`);
+      }
+
+      const data = await res.json();
+      if (data.data && data.data[0] && data.data[0].images && data.data[0].images.jpg) {
+        const url = data.data[0].images.jpg.image_url;
+        imageCache[title] = url;
+        saveImageCache();
+        return url;
+      }
+    } catch (e) {
+      if (attempt < retries) {
+        await new Promise(r => setTimeout(r, 1000 * (attempt + 1)));
+      }
+    }
+  }
   return null;
 }
 
 function loadImage(img, skeleton, url, emoji) {
   if (!url) {
-    skeleton.innerHTML = emoji;
+    skeleton.innerHTML = `<span style="font-size:3rem;filter:grayscale(0.3);opacity:0.8;">${emoji}</span>`;
     return;
   }
   img.src = url;
@@ -923,10 +964,35 @@ function loadImage(img, skeleton, url, emoji) {
     skeleton.style.display = 'none';
   };
   img.onerror = () => {
-    skeleton.innerHTML = emoji;
+    skeleton.innerHTML = `<span style="font-size:3rem;filter:grayscale(0.3);opacity:0.8;">${emoji}</span>`;
   };
 }
 
+// Intersection Observer for lazy loading
+const imageObserver = new IntersectionObserver((entries) => {
+  entries.forEach(entry => {
+    if (entry.isIntersecting) {
+      const card = entry.target.closest('.card');
+      if (!card) return;
+      const img = card.querySelector('.card-img-real');
+      const skeleton = card.querySelector('.card-img-skeleton');
+      const title = img.alt;
+      const emoji = skeleton.textContent;
+
+      if (img && !img.dataset.loaded) {
+        img.dataset.loaded = 'true';
+        if (imageCache[title]) {
+          loadImage(img, skeleton, imageCache[title], emoji);
+        } else {
+          jikanFetch(title).then(url => {
+            loadImage(img, skeleton, url, emoji);
+          });
+        }
+      }
+      imageObserver.unobserve(entry.target);
+    }
+  });
+}, { rootMargin: '100px' });
 function renderResults(results) {
   const grid = document.getElementById('animeGrid');
   const empty = document.getElementById('emptyState');
@@ -973,21 +1039,11 @@ function renderResults(results) {
 
     grid.appendChild(card);
 
-    // Load image
-    const img = card.querySelector('.card-img-real');
-    const skeleton = card.querySelector('.card-img-skeleton');
-
-    if (imageCache[anime.title]) {
-      loadImage(img, skeleton, imageCache[anime.title], anime.emoji);
-    } else {
-      jikanFetch(anime.title).then(url => {
-        if (url) imageCache[anime.title] = url;
-        loadImage(img, skeleton, url, anime.emoji);
-      });
-    }
+    // Observe for lazy loading
+    const imgWrap = card.querySelector('.card-img');
+    imageObserver.observe(imgWrap);
   });
 }
-
 function renderAnime(animeList) {
   const results = animeList.map(a => ({ anime: a, score: 0, matchPercent: 0 }));
   currentResults = results;
