@@ -1,126 +1,109 @@
-# Anime Discovery Engine
+# Anime Search Engine 🎌
 
-A full-stack anime search & discovery web application with OTT streaming availability, genre filters, vibe search, and detailed anime pages.
+A fast, lightweight anime discovery web app built for anime fans who are tired of slow, cluttered platforms.
 
-## Features
+---
 
-- **Smart Search & Discovery**: Natural language vibe search (e.g., "assassinations with fun")
-- **Genre & Preference Sidebar**: Multi-select genre filters, format, status, year range, rating, episodes
-- **Anime Detail Pages**: Full synopsis, episodes, ratings, studios, directors, voice cast, trailer
-- **OTT Platform Availability**: Shows where to watch on Netflix, Crunchyroll, Hulu, Funimation, Amazon Prime, HIDIVE
-- **Trending, Top Rated, Seasonal** browsing
-- **Watchlist**: Save anime to localStorage
-- **Search History**: Persistent search history
-- **Dark Mode UI**: Inspired by AniList/MyAnimeList modern designs
-- **Responsive**: Mobile-friendly with collapsible sidebar
+## 🎯 Problem Statement
 
-## Tech Stack
+Finding anime online is frustrating:
+- **Slow loading** — cover images take forever to render, killing the browsing experience
+- **Cluttered UI** — most sites are overloaded with ads and unnecessary features
+- **No instant search** — results don't update as you type; you have to hit enter and wait
+- **Poor mobile experience** — grids break on phones, making browsing painful
+- **No offline persistence** — your watchlist disappears when you close the tab
 
-- **Frontend**: React 18 + Vite + Tailwind CSS + React Router + Lucide Icons
-- **Backend**: FastAPI (Python) + httpx
-- **Data Source**: AniList GraphQL API (free, no API key needed)
-- **Streaming Data**: Curated database + external links from AniList
+## 💡 Our Solution
 
-## Project Structure
+This app solves these problems with a clean, performance-first approach:
+
+| Problem | Solution |
+|---------|----------|
+| Slow image loading | **Lazy loading + Intersection Observer** — images load only when they enter the viewport, with blur-up placeholders for instant perceived performance |
+| Cluttered UI | **Minimal, distraction-free design** — no ads, no bloat, just anime |
+| Slow search | **Debounced real-time search** — results update as you type (300ms debounce) without hammering the API |
+| Broken mobile layout | **Responsive CSS Grid** — adapts from 1 column (mobile) to 5 columns (desktop) seamlessly |
+| Lost watchlist | **localStorage persistence** — your favorites stay saved across sessions |
+
+---
+
+## 🚀 Features
+
+- ⚡ **Instant Search** — real-time results as you type
+- 🎛️ **Smart Filters** — filter by genre, year, rating, status, type
+- 🖼️ **Optimized Images** — lazy-loaded with blur placeholders
+- 📱 **Fully Responsive** — works on mobile, tablet, desktop
+- 🌗 **Dark/Light Theme** — toggle with persistent preference
+- 💾 **Watchlist** — save favorites to localStorage
+- 📊 **Anime Details** — rich info view with synopsis, characters, recommendations
+
+---
+
+## 🛠️ Tech Stack
+
+- **Frontend:** HTML5, CSS3, Vanilla JavaScript (ES6+)
+- **API:** [Jikan API](https://jikan.moe/) (MyAnimeList unofficial API)
+- **No build step, no dependencies** — just open `index.html`
+
+---
+
+## 📦 Quick Start
+
+```bash
+git clone https://github.com/deaththekid1614/anime-search-engine.git
+cd anime-search-engine
+
+# Serve with any static server
+python3 -m http.server 8000
+# or
+npx serve .
+```
+
+Open `http://localhost:8000`
+
+---
+
+## 🏗️ Project Structure
 
 ```
-anime-discovery-engine/
-├── backend/
-│   ├── main.py              # FastAPI backend
-│   └── requirements.txt     # Python dependencies
-├── frontend/
-│   ├── src/
-│   │   ├── components/      # Reusable components
-│   │   ├── pages/           # Page components
-│   │   ├── utils/           # API client
-│   │   ├── App.jsx          # Main app
-│   │   └── main.jsx         # Entry point
-│   ├── package.json
-│   ├── vite.config.js
-│   └── tailwind.config.js
+anime-search-engine/
+├── index.html
+├── css/
+│   ├── main.css
+│   ├── components.css
+│   ├── anime-grid.css
+│   └── responsive.css
+├── js/
+│   ├── app.js
+│   ├── api.js
+│   ├── search.js
+│   ├── ui.js
+│   ├── image-loader.js
+│   └── storage.js
 └── README.md
 ```
 
-## Setup Instructions
+---
 
-### 1. Backend Setup
+## 🔑 GitHub Token Setup
 
-```bash
-cd backend
+To push code, generate a Personal Access Token:
 
-# Create virtual environment (recommended)
-python -m venv venv
-source venv/bin/activate  # On Windows: venv\Scripts\activate
+1. Go to [github.com/settings/tokens/new](https://github.com/settings/tokens/new)
+2. **Note:** `Anime Search Engine`
+3. **Scopes:** ✅ `repo`
+4. **Generate & copy** the token (shown once only!)
+5. Use it as your password when `git push` asks
 
-# Install dependencies
-pip install -r requirements.txt
+---
 
-# Run the server
-python main.py
-# Or: uvicorn main:app --host 0.0.0.0 --port 8000 --reload
-```
+## 📝 Future Updates
 
-The backend will run on `http://localhost:8000`
+- [ ] User auth & cloud watchlist
+- [ ] PWA with offline support
+- [ ] Voice search
+- [ ] Anime recommendation engine
 
-### 2. Frontend Setup
+---
 
-```bash
-cd frontend
-
-# Install dependencies
-npm install
-
-# Create .env file
-cp .env.example .env
-
-# Run development server
-npm run dev
-```
-
-The frontend will run on `http://localhost:5173`
-
-### 3. Access the App
-
-Open your browser and go to `http://localhost:5173`
-
-## API Endpoints
-
-| Endpoint | Method | Description |
-|----------|--------|-------------|
-| `/api/search` | POST | Search anime with filters |
-| `/api/anime/{id}` | GET | Get anime details |
-| `/api/trending` | GET | Get trending anime |
-| `/api/genres` | GET | Get all genres |
-| `/api/seasonal` | GET | Get seasonal anime |
-| `/api/top-rated` | GET | Get top rated anime |
-| `/api/vibe-search` | GET | Vibe-based search |
-
-## Vibe Search Examples
-
-Try these natural language queries:
-- "assassinations with fun" → Assassination Classroom, Sakamoto desu ga?
-- "depressing isekai" → Re:Zero, Grimgar
-- "wholesome found family" → Spy x Family, Barakamon
-- "dark fantasy horror" → Berserk, Tokyo Ghoul
-- "mind bending thriller" → Steins;Gate, Death Note
-- "epic shounen battle" → Attack on Titan, Demon Slayer
-
-## Streaming Platforms Supported
-
-- Netflix
-- Crunchyroll
-- Hulu
-- Funimation
-- Amazon Prime Video
-- HIDIVE
-
-## Notes
-
-- The app uses AniList API which is free and requires no API key
-- Streaming availability data is curated for popular titles and enriched with external links from AniList
-- Data is cached in-memory for 30 minutes to reduce API calls
-- Watchlist and search history are stored in browser localStorage
-
-## License
-
-MIT
+**Built for the anime community.** 🙏
